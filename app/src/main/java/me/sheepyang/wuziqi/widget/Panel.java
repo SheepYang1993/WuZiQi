@@ -120,7 +120,14 @@ public class Panel extends View {
             canvas.drawLine(startY, startX, endY, endX, mPaint);//绘制竖线
         }
 
+        float offset = (mLineWidth * (1 - mRatioPieceOfLine)) / 2;
+        for (Point point : mWhiteList) {
+            canvas.drawBitmap(mWhitePiece, point.x * mLineWidth + offset, point.y * mLineWidth + offset, mPaint);
+        }
 
+        for (Point point : mBlackList) {
+            canvas.drawBitmap(mBlackPiece, point.x * mLineWidth + offset, point.y * mLineWidth + offset, mPaint);
+        }
 
 
 /*        float left = (1f - mRatioPieceOfLine) * mLineWidth;
@@ -138,14 +145,6 @@ public class Panel extends View {
             }
         }
 
-        for (Point point : mWhiteList) {
-
-        }
-
-        for (Point point : mBlackList) {
-
-        }
-
         //绘制竖线
 //        startY = 0.5f * mLineWidth;
 //        endY = mPanelWidth - 0.5f * mLineWidth;
@@ -160,6 +159,7 @@ public class Panel extends View {
     public boolean onTouchEvent(MotionEvent event) {
         int x = (int) event.getX();
         int y = (int) event.getY();
+        Log.i("SheepYang", "onTouchEvent: x=" + x + ", y=" + y);
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 if (mCurrentPoint == null) {
@@ -180,6 +180,7 @@ public class Panel extends View {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 Point point = getValidPoint(mCurrentPoint);
+                Log.i("SheepYang", "point: x=" + point.x + ", y=" + point.y);
                 if (mWhiteList.contains(point) || mBlackList.contains(point)) {
                     mCurrentPoint = null;
                     Toast.makeText(mContext, "这点已经有棋子了！", Toast.LENGTH_SHORT).show();
