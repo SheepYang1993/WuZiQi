@@ -23,10 +23,12 @@ import me.sheepyang.wuziqi.R;
  */
 
 public class Panel extends View {
+    private static final int MAX_LINE = 10;//棋盘总行数
+    private static final int MAX_COUNT_IN_LINE = 5;//胜利条件，5子连线
+    private static final float mRatioPieceOfLine = 3f / 4;//棋子与格子的比例
     private Context mContext;
     private int mPanelWidth;//棋盘宽度
     private float mLineWidth;//棋盘格子宽度
-    private static final int MAX_LINE = 10;//棋盘总行数
     private Paint mPaint = new Paint();
 
     private Bitmap mWhitePiece;
@@ -35,8 +37,9 @@ public class Panel extends View {
     private List<Point> mWhiteList = new ArrayList<>();
     private List<Point> mBlackList = new ArrayList<>();
 
-    private static final float mRatioPieceOfLine = 3f / 4;//棋子与格子的比例
     private Point mCurrentPoint;
+    private boolean mIsGameOver;
+    private boolean mIsWhiteWinner;
 
     public Panel(Context context) {
         this(context, null);
@@ -53,15 +56,61 @@ public class Panel extends View {
 
     private void init(Context context) {
         mContext = context;
-        setBackgroundColor(0x44ff0000);
 
-        mWhitePiece = BitmapFactory.decodeResource(getResources(), R.drawable.white_piece);
-        mBlackPiece = BitmapFactory.decodeResource(getResources(), R.drawable.black_piece);
+//        mWhitePiece = BitmapFactory.decodeResource(getResources(), R.drawable.white_piece);
+//        mBlackPiece = BitmapFactory.decodeResource(getResources(), R.drawable.black_piece);
+//        mWhitePiece = BitmapFactory.decodeResource(getResources(), R.drawable.white_p);
+        mWhitePiece = BitmapFactory.decodeResource(getResources(), R.drawable.white_p2);
+        mBlackPiece = BitmapFactory.decodeResource(getResources(), R.drawable.black_p);
 
         mPaint.setColor(0x88000000);
         mPaint.setAntiAlias(true);
         mPaint.setDither(true);
         mPaint.setStyle(Paint.Style.STROKE);
+    }
+
+    public void restartGame() {
+        mWhiteList = new ArrayList<>();
+        mBlackList = new ArrayList<>();
+        mIsWhiteRound = false;// 是否为白棋的回合
+        mCurrentPoint = null;
+        mIsGameOver = false;
+        mIsWhiteWinner = false;
+        invalidate();
+    }
+
+    public void undo() {
+        if (!mIsGameOver) {
+            if (mIsWhiteRound) {
+                if (mBlackList != null && mBlackList.size() > 0) {
+                    mBlackList.remove(mBlackList.size() - 1);
+                    mIsWhiteRound = !mIsWhiteRound;
+                } else {
+                    Toast.makeText(mContext, R.string.cant_undo, Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                if (mWhiteList != null && mWhiteList.size() > 0) {
+                    mWhiteList.remove(mWhiteList.size() - 1);
+                    mIsWhiteRound = !mIsWhiteRound;
+                } else {
+                    Toast.makeText(mContext, R.string.cant_undo, Toast.LENGTH_SHORT).show();
+                }
+            }
+            invalidate();
+        } else {
+            Toast.makeText(mContext, R.string.game_over_restart, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void giveUp() {
+        if (!mIsGameOver) {
+            mIsWhiteWinner = !mIsWhiteRound;
+            mIsGameOver = true;
+            String msg = mIsWhiteWinner ? mContext.getString(R.string.white_winner) : mContext.getString(R.string.black_winner);
+            Toast.makeText(mContext, msg, Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(mContext, R.string.game_over_restart, Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -101,7 +150,168 @@ public class Panel extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        drawBoard(canvas);
+        drawBoard(canvas);//绘制棋盘
+        drawPiece(canvas);//绘制棋子
+        checkGameState();//检查游戏是否结束
+    }
+
+    private void checkGameState() {
+        boolean winnerWhite = checkFiveLine(mWhiteList);
+        boolean winnerBlack = checkFiveLine(mBlackList);
+
+        if (winnerWhite || winnerBlack) {
+            mIsWhiteWinner = winnerWhite;
+            mIsGameOver = true;
+            String msg = mIsWhiteWinner ? mContext.getString(R.string.white_winner) : mContext.getString(R.string.black_winner);
+            Toast.makeText(mContext, msg, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean checkFiveLine(List<Point> list) {
+        for (Point point : list) {
+            int x = point.x;
+            int y = point.y;
+            boolean isWinner;
+            isWinner = checkHorizontal(x, y, list);//横向检测
+            if (isWinner) return true;
+
+            isWinner = checkVertical(x, y, list);//纵向检测
+            if (isWinner) return true;
+
+            isWinner = checkLeftDiagonal(x, y, list);//左斜检测
+            if (isWinner) return true;
+
+            isWinner = checkRightDiagonal(x, y, list);//右斜检测
+            if (isWinner) return true;
+        }
+        return false;
+    }
+
+    private boolean checkLeftDiagonal(int x, int y, List<Point> list) {
+        int count = 1;
+        //往右上数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x + i, y - i))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        //往左下数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x - i, y + i))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkRightDiagonal(int x, int y, List<Point> list) {
+        int count = 1;
+        //往左上数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x - i, y - i))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        //往右下数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x + i, y + i))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkVertical(int x, int y, List<Point> list) {
+        int count = 1;
+        //往上数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x, y - i))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        //往下数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x, y + i))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkHorizontal(int x, int y, List<Point> list) {
+        int count = 1;
+        //往左数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x - i, y))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        //往右数
+        for (int i = 1; i < MAX_COUNT_IN_LINE; i++) {
+            if (list.contains(new Point(x + i, y))) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        if (count == MAX_COUNT_IN_LINE) {
+            return true;
+        }
+        return false;
+    }
+
+    private void drawPiece(Canvas canvas) {
+        float offset = mLineWidth * (1 - mRatioPieceOfLine) / 2;
+        for (Point point : mWhiteList) {
+            canvas.drawBitmap(mWhitePiece, point.x * mLineWidth + offset, point.y * mLineWidth + offset, null);
+        }
+
+        for (Point point : mBlackList) {
+            canvas.drawBitmap(mBlackPiece, point.x * mLineWidth + offset, point.y * mLineWidth + offset, null);
+        }
+
+        if (mCurrentPoint != null) {
+            if (mIsWhiteRound) {
+                canvas.drawBitmap(mWhitePiece, mCurrentPoint.x - 2 * offset, mCurrentPoint.y - 2 * offset, mPaint);
+            } else {
+                canvas.drawBitmap(mBlackPiece, mCurrentPoint.x - 2 * offset, mCurrentPoint.y - 2 * offset, mPaint);
+            }
+        }
     }
 
     private void drawBoard(Canvas canvas) {
@@ -119,44 +329,13 @@ public class Panel extends View {
             canvas.drawLine(startX, startY, endX, endY, mPaint);//绘制横线
             canvas.drawLine(startY, startX, endY, endX, mPaint);//绘制竖线
         }
-
-        float offset = (mLineWidth * (1 - mRatioPieceOfLine)) / 2;
-        for (Point point : mWhiteList) {
-            canvas.drawBitmap(mWhitePiece, point.x * mLineWidth + offset, point.y * mLineWidth + offset, mPaint);
-        }
-
-        for (Point point : mBlackList) {
-            canvas.drawBitmap(mBlackPiece, point.x * mLineWidth + offset, point.y * mLineWidth + offset, mPaint);
-        }
-
-
-/*        float left = (1f - mRatioPieceOfLine) * mLineWidth;
-        float top = (1f - mRatioPieceOfLine) * mLineWidth;
-        canvas.drawBitmap(mWhitePiece, left, top, mPaint);
-        mPaint.setColor(0xff00ff00);
-        mPaint.setStrokeWidth(10);
-        canvas.drawPoint(left, top, mPaint);
-        mPaint.setColor(0x88000000);*/
-        if (mCurrentPoint != null) {
-            if (mIsWhiteRound) {
-                canvas.drawBitmap(mWhitePiece, mCurrentPoint.x, mCurrentPoint.y, mPaint);
-            } else {
-                canvas.drawBitmap(mBlackPiece, mCurrentPoint.x, mCurrentPoint.y, mPaint);
-            }
-        }
-
-        //绘制竖线
-//        startY = 0.5f * mLineWidth;
-//        endY = mPanelWidth - 0.5f * mLineWidth;
-//        for (int i = 0; i < MAX_LINE; i++) {
-//            startX = (i + 0.5f) * mLineWidth;
-//            endX = startX;
-//            canvas.drawLine(startX, startY, endX, endY, mPaint);
-//        }
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (mIsGameOver) {
+            return false;
+        }
         int x = (int) event.getX();
         int y = (int) event.getY();
         Log.i("SheepYang", "onTouchEvent: x=" + x + ", y=" + y);
@@ -183,9 +362,9 @@ public class Panel extends View {
                 Log.i("SheepYang", "point: x=" + point.x + ", y=" + point.y);
                 if (mWhiteList.contains(point) || mBlackList.contains(point)) {
                     mCurrentPoint = null;
-                    Toast.makeText(mContext, "这点已经有棋子了！", Toast.LENGTH_SHORT).show();
+                    Log.i("SheepYang", "这点已经有棋子了！");
                     invalidate();
-                    return true;
+                    return false;
                 }
                 if (mIsWhiteRound) {
                     mWhiteList.add(point);

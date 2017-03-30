@@ -1,3 +1,7 @@
 <resources>
-    <string name="app_name">WuZiQi</string>
+    <string name="app_name">黑白大战</string>
+    <string name="white_winner">小白获胜啦~</string>
+    <string name="black_winner">小黑获胜啦~</string>
+    <string name="game_over_restart">游戏已经结束，请重新开始</string>
+    <string name="cant_undo">悔个JJ，不能再悔棋了！</string>
 </resources>
